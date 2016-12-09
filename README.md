@@ -11,6 +11,14 @@ Many source code management systems, such as GitHub, GitLab and Bitbucket, can i
 
 This repository will provide '''git-audit''' which will check existing repositories are compliant with good development practices. The first stage is to check existing git repositories for the separation of committer and devleoper. This can be done with the metadata already in most git repositories. It can provide basic evidence that such practices have been followed, and if the repo uses GPG signing, it can provide much stronger confidence. This is an after-the-fact check; it will not prevent people from breaking good practice in the first place, but it will report when they have been broken in the past. In the future, we may add pre-commit hooks to warn users before they break rules.
 
+# Usage
+
+At the moment, there is no installer, so just run the 'check' script directly:
+
+    ./check.py <git dir>
+
+You can run this on its own git repository with `./check .`. This will report many problems! This tool does not consider its own repository trustworthy, but it gives us some information we could use to try and improve it.
+
 # Future improvements:
 
 * Checking for more development practices
