@@ -55,6 +55,69 @@ def find_baselines(commit):
             baselines.append(commit.id)
             commit = commit.parents[0]
 
+def check_merges_by_branch_authors(repo):
+    head = repo.head
+
+    # Is it a merge commit? Can we get the parents?
+    commit = head.peel(pygit2.Commit)
+
+    all_baselines = find_baselines(commit)
+
+    while True:
+        merge_author = commit.author.email
+        parents = commit.parents
+
+        if len(parents)==0:
+            # We've reached the end of the repository
+            break
+
+        if len(parents)<2:
+            record_issue("Non-merge commit on trunk", commit.id)
+            commit = parents[0]
+            continue
+
+        check_can_merge_to_this_branch(merge_author)
+
+        # ASSUME (!) the first parent was the previous position of the branch...
+        feature_branches = parents[1:]
+        logging.debug("Base of this merge is %s"%(parents[0].id))
+        for p in feature_branches:
+            ident = track_back_to_parents(p, merge_author, all_baselines)
+        commit = parents[0]
+
+def check_merge_permissions(repo):
+    """ Checks the ROLES file exists and then uses it to validate all commits to
+    a particular branch (only "master" at the moment) """
+
+    # TODO: this isn't correct yet. You need to get the ROLES file *for the previous
+    # revision* and use that to validate the current merge.
+
+    commit = repo.head.peel(pygit2.Commit)
+    try:
+        permissions_file_id = commit.tree['ROLES'].id
+    except KeyError:
+        record_issue("Repository has no ROLES file", None)
+        return
+    permissions_file = repo[permissions_file_id]
+    perms = permissions_file.data.split("\n")
+    mergers = {}
+    checked_branch = "master"
+    for l in perms:
+        if l == "": continue
+        fields = l.strip().split(":")
+        branch = fields[0]
+        users = fields[1].split(",")
+        mergers[branch] = users
+        logging.info("Users %s are allowed to merge to %s"%(users, branch))
+
+    all_baselines = find_baselines(commit)
+    for b in all_baselines:
+        commit = repo.get(b)
+        if commit.author.email not in mergers[checked_branch]:
+            record_issue("Unauthorised user committed to branch", "%s committed to %s at %s"%(commit.author.email, checked_branch, b))
+        else:
+            logging.info("Commit by %s to %s"%(checked_branch, commit.author.email))
+
 def main():
     if len(sys.argv) < 2:
         print("Usage: check.py <git directory>")
@@ -63,39 +126,16 @@ def main():
     if not os.path.isdir(gitdir):
         logging.error("%s is not a directory"%gitdir)
         sys.exit(ERROR)
+
     try:
         repo = pygit2.Repository(gitdir)
-        head = repo.head
-
-        # Is it a merge commit? Can we get the parents?
-        commit = head.peel(pygit2.Commit)
-
-        all_baselines = find_baselines(commit)
-
-        while True:
-            merge_author = commit.author.email
-            parents = commit.parents
-
-            if len(parents)==0:
-                # We've reached the end of the repository
-                break
-
-            if len(parents)<2:
-                record_issue("Non-merge commit on trunk", commit.id)
-                commit = parents[0]
-                continue
-
-            check_can_merge_to_this_branch(merge_author)
-
-            # ASSUME (!) the first parent was the previous position of the branch...
-            feature_branches = parents[1:]
-            logging.debug("Base of this merge is %s"%(parents[0].id))
-            for p in feature_branches:
-                ident = track_back_to_parents(p, merge_author, all_baselines)
-            commit = parents[0]
-    except None as e:
-        print(e)
+    except Exception as e:
+        logging.error("Failed to open git repository %s: %r"%(gitdir, e))
         sys.exit(ERROR)
+
+    check_merges_by_branch_authors(repo)
+    check_merge_permissions(repo)
+
     print("Analysis complete.")
     if len(issues.items()) == 0:
         print "No issues found in repository."
