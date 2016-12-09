@@ -19,6 +19,15 @@ At the moment, there is no installer, so just run the 'check' script directly:
 
 You can run this on its own git repository with `./check .`. This will report many problems! This tool does not consider its own repository trustworthy, but it gives us some information we could use to try and improve it.
 
+# Example output
+
+    Analysis complete.
+    Issues found in git repository:
+      Feature branch merged by one of its contributors (1 count)
+        e717c8c7de6974a810d69a29b50cfdf68edbb28f
+      Repository has no ROLES file (1 count)
+      Non-merge commit on trunk (247 counts, not listed)
+
 # Future improvements:
 
 * Checking for more development practices
