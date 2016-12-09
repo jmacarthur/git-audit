@@ -8,6 +8,14 @@ AUDIT_OK = 0
 AUDIT_FAILED = 1
 ERROR = 2
 
+issues = {}
+
+def record_issue(issue):
+    if issue in issues:
+        issues[issue] += 1
+    else:
+        issues[issue] = 1
+
 def check_can_merge_to_this_branch(email):
     pass
 
@@ -22,7 +30,8 @@ def track_back_to_parents(this_commit, excluded_author, all_baselines, depth = 1
         return None
     if this_commit.author.email == excluded_author:
         print("This feature branch contains commit %s, authored by %s, who performed the merge. (%s)"%(this_commit.id, this_commit.author.email, excluded_author))
-        sys.exit(AUDIT_FAILED)
+        record_issue("Feature branch merged by one of its contributors")
+        return None
     for p in this_commit.parents:
         return track_back_to_parents(p, excluded_author, all_baselines, depth + 1)
 
@@ -40,8 +49,9 @@ def find_baselines(commit):
             print "Reached the end of the branch"
             return baselines
         else:
-            print("Unexpected commit in branch line: %s has %d commit(s)"%(commit.id, len(commit.parents)))
-            sys.exit(ERROR)
+            record_issue("Non-merge commit on trunk")
+            baselines.append(commit.id)
+            commit = commit.parents[0]
 
 def main():
     if len(sys.argv) < 2:
@@ -59,15 +69,20 @@ def main():
         commit = head.peel(pygit2.Commit)
 
         all_baselines = find_baselines(commit)
-        
+
         while True:
-            print("\nHead commit is %s" % commit.id)
-            parents = commit.parents
-            if len(parents)<2:
-                print("This is not a merge commit. Verify failed")
-                sys.exit(AUDIT_FAILED)
-            print("Author of merge commit: %s"%commit.author.email)
             merge_author = commit.author.email
+            parents = commit.parents
+
+            if len(parents)==0:
+                # We've reached the end of the repository
+                break
+            
+            if len(parents)<2:
+                record_issue("Non-merge commit on trunk.")
+                commit = parents[0]
+                continue
+            
             check_can_merge_to_this_branch(merge_author)
 
             # ASSUME (!) the first parent was the previous position of the branch...
@@ -76,9 +91,18 @@ def main():
             for p in feature_branches:
                 ident = track_back_to_parents(p, merge_author, all_baselines)
             commit = parents[0]
-
-    except Exception as e:
+    except None as e:
         print(e)
         sys.exit(ERROR)
+    print("Analysis complete.")
+    if len(issues.items()) == 0:
+        print "No issues found in repository."
+        sys.exit(AUDIT_OK)
+    else:
+        print("Issues found in git repository: ")
+        for (k,v) in issues.items():
+            print("  %s (%d counts)"%(k,v))
+            sys.exit(AUDIT_FAILED)
+
 
 if __name__=="__main__": main()
