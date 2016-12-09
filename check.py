@@ -144,9 +144,10 @@ def main():
         print("Issues found in git repository: ")
         for (k,v) in issues.items():
             if len(v) <= 5:
-                print("  %s (%d counts)"%(k,len(v)))
+                print("  %s (%d count%s)"%(k,len(v), 's' if len(v)!=1 else ''))
                 for note in v:
-                    print("    %s"%note)
+                    if note is not None:
+                        print("    %s"%note)
             else:
                 print("  %s (%d counts, not listed)"%(k,len(v)))
         sys.exit(AUDIT_FAILED)
