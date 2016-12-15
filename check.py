@@ -38,8 +38,8 @@ def track_back_to_parents(this_commit, excluded_author,
         logging.debug("Tracked back to base; nothing futher to do")
         return None
     if this_commit.author.email == excluded_author:
-        logging.info("This feature branch contains commit %s, authored by " +
-                     " %s, who performed the merge." %
+        logging.info(("This feature branch contains commit %s, authored by " +
+                      " %s, who performed the merge.") %
                      (this_commit.id, this_commit.author.email))
         record_issue("Feature branch merged by one of its contributors",
                      this_commit.id)
