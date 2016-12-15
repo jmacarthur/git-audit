@@ -19,6 +19,8 @@ At the moment, there is no installer, so just run the 'check' script directly:
 
 You can run this on its own git repository with `./check .`. This will report many problems! This tool does not consider its own repository trustworthy, but it gives us some information we could use to try and improve it.
 
+You can also try cloning https://gitlab.com/trustable/git-audit-example.git and running check.py against that. That repository contains some GPG-signed commits. Unfortunately, at the time of writing, the pygit2 library which we use can't verify GPG-signed commits.
+
 # Example output
 
     Analysis complete.
