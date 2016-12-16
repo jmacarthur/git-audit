@@ -35,3 +35,8 @@ You can also try cloning https://gitlab.com/trustable/git-audit-example.git and 
 * Checking for more development practices
 * User and role information in an existing database, such as LDAP. We know several people will use these roles already, and many source code management tools (e.g. Bitbucket) can use these sources to control access.
 * Advisory pre-commit hooks which implement the same rules, to reduce mistakes made development
+
+# Similar existing systems:
+
+* Gerrit allows you to store Prolog rules in the repository which affect how gerrit handles submissions. These can be used to restrict changes to specific branches to specific users, but it isn't clear whether they can take into account features branches with multiple authors. All the examples seem to be based on the single submitter of a patch, rather than the authors of commits.
+* Patch tracking in git is another aspect of trustable software. The authors of gitorious have suggested this at https://www.gitano.org.uk/ideas/git-pull-request/ and have some good requirements set out. Git-candidate is one attempt to store patch tracking information in git: http://git.661346.n2.nabble.com/PATCH-0-2-git-candidate-git-based-patch-tracking-and-review-td7642808.html
