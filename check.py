@@ -158,7 +158,7 @@ def check_merge_permissions(repo):
 
 
 def plural(n):
-    return 's' if len(v) != 1 else ''
+    return 's' if len(n) != 1 else ''
 
 
 def main():
