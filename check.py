@@ -102,42 +102,63 @@ def check_merges_by_branch_authors(repo):
         commit = parents[0]
 
 
-def check_merge_permissions(repo):
-    """ Checks the ROLES file exists and then uses it to validate all commits to
-    a particular branch (only "master" at the moment) """
-
-    # TODO: this isn't correct yet. You need to get the ROLES file *for
-    # the previous revision* and use that to validate the current merge.
-
-    commit = repo.head.peel(pygit2.Commit)
+def get_mergers_for_commit(repo, commit_id):
+    """ This reads the ROLES file at the time of a given commit and returns a
+        list of the people allowed to merge each branch. The return value is a
+        dictionary whose keys are branch names and values are lists of email
+        addresses. """
+    commit = repo[commit_id]
     try:
         permissions_file_id = commit.tree['ROLES'].id
     except KeyError:
         record_issue("Repository has no ROLES file", None)
-        return
+        return {}
     permissions_file = repo[permissions_file_id]
     perms = permissions_file.data.split("\n")
     mergers = {}
-    checked_branch = "master"
     for l in perms:
         if l == "":
             continue
         fields = l.strip().split(":")
         branch = fields[0]
         users = fields[1].split(",")
-        mergers[branch] = users
+        if users is not None:
+            mergers[branch] = users
         logging.info("Users %s are allowed to merge to %s" % (users, branch))
+    return mergers
 
-    all_baselines = find_baselines(commit)
-    for b in all_baselines:
+
+def check_merge_permissions(repo):
+    """ Checks the ROLES file for each baseline - at the time of the previous
+        baseline - allows that merge. """
+
+    head_commit = repo.head.peel(pygit2.Commit)
+    all_baselines = find_baselines(head_commit)
+    checked_branch = "master"
+
+    # This requires that baselines are in order (most recent to oldest)
+    for baseline_no in range(0, len(all_baselines)-1):
+        b = all_baselines[baseline_no]
+        rules_baseline = all_baselines[baseline_no+1]
+        mergers = get_mergers_for_commit(repo, rules_baseline)
+        if checked_branch not in mergers:
+            # If there are no rules for a branch, that's considered
+            # OK, so there's nothing to check at this point (although
+            # this might warrant a low-level warning)
+            continue
         commit = repo.get(b)
-        if commit.author.email not in mergers[checked_branch]:
+        mergers_for_branch = mergers[checked_branch]
+        if commit.author.email not in mergers_for_branch:
             record_issue("Unauthorised user committed to branch",
                          "%s committed to %s at %s" %
                          (commit.author.email, checked_branch, b))
         else:
             logging.info("Commit by %s to %s" %
                          (checked_branch, commit.author.email))
+
+
+def plural(n):
+    return 's' if len(v) != 1 else ''
 
 
 def main():
@@ -160,14 +181,13 @@ def main():
 
     print("Analysis complete.")
     if len(issues.items()) == 0:
-        print "No issues found in repository."
+        print ("No issues found in repository.")
         sys.exit(AUDIT_OK)
     else:
-        print("Issues found in git repository: ")
+        print ("Issues found in git repository: ")
         for (k, v) in issues.items():
             if len(v) <= 5:
-                print("  %s (%d count%s)" % (k, len(v),
-                                             's' if len(v) != 1 else ''))
+                print("  %s (%d count%s)" % (k, len(v), plural(v)))
                 for note in v:
                     if note is not None:
                         print("    %s" % note)
